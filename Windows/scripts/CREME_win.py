@@ -1,10 +1,10 @@
 import os
 import time
 
- 
+
 # Config clients
 
-os.system("/home/controller/Desktop/scripts/configuration/client_config_cred_steal.sh")
+os.system("/home/controller/Desktop/scripts/configuration/client_config_base.sh")
 time.sleep(60)
 os.system("/home/controller/Desktop/scripts/configuration/dataloggerserver_config.sh")
 time.sleep(60)
@@ -33,7 +33,7 @@ os.system("/home/controller/Desktop/scripts/data_collect/stat_stop.sh")
 time.sleep(30)
 os.system("/home/controller/Desktop/scripts/data_collect/traffic_stop.sh")
 time.sleep(30)
-os.system("/home/controller/Desktop/scripts/data_collect/log_collect.sh")
+os.system("/home/controller/Desktop/scripts/data_collect/log_stop.sh")
 time.sleep(30)
 print("data collecting stop")
 # Send data to dataloggerserver
