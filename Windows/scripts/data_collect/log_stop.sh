@@ -1,9 +1,9 @@
 #!/usr/bin/expect -f
 
-set delKnownHosts "del_known_hosts.sh"
-set ip "192.168.1.110"
-set username "testbed_2"
-set password "qsefthuk"
+set delKnownHosts [lindex $argv 0]
+set ip [lindex $argv 1]
+set username [lindex $argv 2]
+set password [lindex $argv 3]
 
 set timeout 45
 
