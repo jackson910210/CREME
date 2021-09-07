@@ -1,14 +1,14 @@
 #!/usr/bin/expect -f
 
-set delKnownHosts "del_known_hosts.sh"
-set kali_ip "192.168.1.106"
-set username "root"
-set password "qsefthuk"
+set delKnownHosts [lindex $argv 0]
+set kali_ip [lindex $argv 1]
+set username [lindex $argv 2]
+set password [lindex $argv 3]
+set controller_ip [lindex $argv 4]
+set controller_username [lindex $argv 5]
+set controller_pass [lindex $argv 6]
+set controller_path [lindex $argv 7]
 set path "/root/Desktop"
-set controller_user "controller"
-set controller_ip "192.168.1.4"
-set controller_path "/home/controller/Desktop/scripts/configuration/config_kali"
-set controller_pass "qsefthuk"
 
 set timeout 30
 

@@ -1,9 +1,9 @@
 #!/usr/bin/expect -f
 
-set delKnownHosts "del_known_hosts.sh"
-set dataLoggerServer "192.168.1.99"
-set username "root"
-set password "qsefthuk"
+set delKnownHosts [lindex $argv 0]
+set dataLoggerServer_ip [lindex $argv 1]
+set username [lindex $argv 2]
+set password [lindex $argv 3]
 
 set timeout 30
 
@@ -11,7 +11,7 @@ set timeout 30
 spawn /bin/bash $delKnownHosts
 send "exit\r"
 
-spawn ssh $username@$dataLoggerServer
+spawn ssh $username@$dataLoggerServer_ip
 expect "*continue connecting (yes/no*)? "
 send "yes\r"
 expect " password: "
