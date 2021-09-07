@@ -107,6 +107,7 @@ class DataLoggerServer(Machine, implements(IConfiguration), implements(IConfigur
         filename_path = "configuration/./dataloggerserver_base.sh"
         parameters = [self.ip, self.username, self.password]
         ScriptHelper.execute_script(filename_path, parameters, self.show_cmd)
+        # dataloggerserver ip: 192.168.1.99, username: root, password: qsefthuk
 
 
     '''
@@ -154,6 +155,8 @@ class VulnerableClient(DataLoggerClient, implements(IConfiguration), implements(
         filename_path = "configuration/./client_config_base.sh"
         parameters = [self.ip, self.username, self.password]
         ScriptHelper.execute_script(filename_path, parameters, self.show_cmd)
+        # vul username: testbed_2, password: qsefthuk, ip: 192.168.1.110
+
     '''
     def configure_benign_services(self):
         filename_path = "configuration/./Client_benign_services.sh"
@@ -249,7 +252,10 @@ class NonVulnerableClient(DataLoggerClient, implements(IConfiguration), implemen
         #self.configure_benign_services()
 
     def configure_base(self):
-        super().configure_base()
+        filename_path = "configuration/./client_config_base.sh"
+        parameters = [self.ip, self.username, self.password]
+        ScriptHelper.execute_script(filename_path, parameters, self.show_cmd)
+        # vul username: non_vul, password: qsefthuk, ip: 192.168.1.
     '''
     def configure_benign_services(self):
         filename_path = "configuration/./Client_benign_services.sh"
@@ -355,6 +361,16 @@ class AttackerServer(Machine, implements(IConfiguration), implements(IConfigurat
         parameters = [self.ip, self.username, self.password, self.controller_ip, self.controller_username,
                       self.controller_password, self.controller_path]
         ScriptHelper.execute_script(filename_path, parameters, self.show_cmd)
+        '''
+        set delKnownHosts "del_known_hosts.sh"
+        set kali_ip "192.168.1.106"
+        set username "root"
+        set password "qsefthuk"
+        set controller_user "controller"
+        set controller_ip "192.168.1.4"
+        set controller_path "/home/controller/Desktop/scripts/configuration/config_kali"
+        set controller_pass "qsefthuk"
+        '''
     '''
     def configure_pymetasploit(self):
         filename_path = "configuration/./AttackerServer_pymetasploit.sh"
