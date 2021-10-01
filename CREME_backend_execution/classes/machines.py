@@ -92,21 +92,22 @@ class DataLoggerServer(Machine, implements(IConfiguration), implements(IConfigur
                       data_logger_client.password, data_logger_client.path, time_file, self.path]
         ScriptHelper.execute_script(filename_path, parameters, self.show_cmd)
 
-    def centralize_data(self, data_logger_client, contain_continuum_log=False):
+    def centralize_data(self, data_logger_client, other_data=False, remote_paths=[], remote_files=[]):
         self.download_atop_data(data_logger_client)
-        if contain_continuum_log:  # download apache continuum's log
-            remote_path = '/opt/apache_continuum/apache-continuum-1.4.2/logs'
-            remote_log = 'continuum.log'
-            new_log = '{0}_continuum.log'.format(data_logger_client.hostname)
-            self.download_log_data(data_logger_client, remote_path, remote_log, new_log)
+        if other_data:  # download apache continuum's log
+            for index, remote_path in enumerate(remote_paths):
+                remote_file = remote_files[index]
+                new_file = '{0}_{1}'.format(data_logger_client.hostname, remote_file)
+                self.download_log_data(data_logger_client, remote_path, remote_file, new_file)
 
     def centralize_time_files(self, data_logger_client, time_files):
         for time_file in time_files:
             self.download_time_file(data_logger_client, time_file)
 
     def restart_rsyslog(self):
-        filename_path = "./restart_rsyslog.sh"
-        parameters = [self.ip, self.username, self.password]
+        filename_path = "./restart_service.sh"
+        service_name = "rsyslog"
+        parameters = [self.ip, self.username, self.password, service_name]
         ScriptHelper.execute_script(filename_path, parameters, self.show_cmd)
 
     def clean_data_collection(self):
@@ -384,7 +385,7 @@ class TargetServer(DataLoggerClient, implements(IConfiguration), implements(ICon
 
     def configure_resource_hijacking(self):
         filename_path = "configuration/./TargetServer_resource_hijacking.sh"
-        parameters = [self.ip, self.hostname, self.username, self.password]
+        parameters = [self.ip, self.username, self.password]
         ScriptHelper.execute_script(filename_path, parameters, self.show_cmd)
 
     def configure_disk_wipe(self):
@@ -394,6 +395,13 @@ class TargetServer(DataLoggerClient, implements(IConfiguration), implements(ICon
     def configure_end_point_dos(self):
         # ?????
         pass
+
+    # TODO: use right before running process, think about whether run it during configuration time, but remembering
+    #  about persistent configuration after reboot
+    def configure_end_point_dos_ulimit(self):
+        filename_path = "configuration/./TargetServer_end_point_dos_ulimit.sh"
+        parameters = [self.ip, self.username, self.password]
+        ScriptHelper.execute_script(filename_path, parameters, self.show_cmd)
 
     def configure_data_theft(self):
         pass
@@ -409,6 +417,8 @@ class TargetServer(DataLoggerClient, implements(IConfiguration), implements(ICon
 
     def wait_machine_up(self):
         OtherHelper.wait_machine_up(self.ip)
+        # waiting for the machine completely turns on
+        time.sleep(180)
 
     def clean_mirai(self):
         pass
@@ -438,8 +448,15 @@ class TargetServer(DataLoggerClient, implements(IConfiguration), implements(ICon
         self.wait_machine_up()
 
     def restart_rsyslog(self):
-        filename_path = "./restart_rsyslog.sh"
-        parameters = [self.ip, self.username, self.password]
+        filename_path = "./restart_service.sh"
+        service_name = "rsyslog"
+        parameters = [self.ip, self.username, self.password, service_name]
+        ScriptHelper.execute_script(filename_path, parameters, self.show_cmd)
+
+    def restart_continuum(self):
+        filename_path = "./restart_service.sh"
+        service_name = "continuum"
+        parameters = [self.ip, self.username, self.password, service_name]
         ScriptHelper.execute_script(filename_path, parameters, self.show_cmd)
 
     def clean_data_collection(self):
@@ -499,8 +516,15 @@ class BenignServer(DataLoggerClient, implements(IConfiguration), implements(ICon
         super().stop_collect_data()
 
     def restart_rsyslog(self):
-        filename_path = "./restart_rsyslog.sh"
-        parameters = [self.ip, self.username, self.password]
+        filename_path = "./restart_service.sh"
+        service_name = "rsyslog"
+        parameters = [self.ip, self.username, self.password, service_name]
+        ScriptHelper.execute_script(filename_path, parameters, self.show_cmd)
+
+    def restart_continuum(self):
+        filename_path = "./restart_service.sh"
+        service_name = "continuum"
+        parameters = [self.ip, self.username, self.password, service_name]
         ScriptHelper.execute_script(filename_path, parameters, self.show_cmd)
 
     def clean_data_collection(self):
@@ -750,13 +774,19 @@ class AttackerServer(Machine, implements(IConfiguration), implements(IConfigurat
         ScriptHelper.execute_script(filename_path, parameters, self.show_cmd)
 
     def end_point_dos_second_stage(self):
+        new_user_account = "cremetest"
+        new_user_password = "password"
         filename_path = "attacks/end_point_dos/./AttackerServer_second_stage.sh"
-        parameters = [self.ip, self.username, self.password, self.path, self.targeted_attack]
+        parameters = [self.ip, self.username, self.password, self.path, self.targeted_attack,
+                      new_user_account, new_user_password]
         ScriptHelper.execute_script(filename_path, parameters, self.show_cmd)
 
     def end_point_dos_third_stage(self):
+        new_user_account = "cremetest"  # must be same as the second stage
+        new_user_password = "password"
         filename_path = "attacks/end_point_dos/./AttackerServer_third_stage.sh"
-        parameters = [self.ip, self.username, self.password, self.path, self.targeted_attack]
+        parameters = [self.ip, self.username, self.password, self.path, self.targeted_attack,
+                      new_user_account, new_user_password]
         ScriptHelper.execute_script(filename_path, parameters, self.show_cmd)
 
     def data_theft_start_metasploit(self):

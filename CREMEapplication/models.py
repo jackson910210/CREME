@@ -26,6 +26,11 @@ class ProgressData(models.Model):
     stage_7_status = models.IntegerField(default=1)  # 1: off, 2: running, 3: finished
     stage_7_detail = models.TextField(default='None')
 
+    # attack phases
+    attack_phase_1_data = models.TextField(default='Attack Phase 1')
+    attack_phase_2_data = models.TextField(default='Attack Phase 2')
+    attack_phase_3_data = models.TextField(default='Attack Phase 3')
+
 
 class Testbed(models.Model):
     status = models.IntegerField(default=1)  # 1: off, 2: running, 3: finished
@@ -34,7 +39,7 @@ class Testbed(models.Model):
     number_of_target_server = models.IntegerField(default=1)  # only 1
     number_of_benign_server = models.IntegerField(default=1)  # only 1
     number_of_vulnerable_client = models.IntegerField(default=1)
-    number_of_non_vulnerable_client = models.IntegerField(default=1)
+    number_of_non_vulnerable_client = models.IntegerField(default=2)  # at least 2: 1 for benign, 1 for target server
     number_of_attacker_server = models.IntegerField(default=1)  # only 1
     number_of_malicious_client = models.IntegerField(default=1)  # only 1
 

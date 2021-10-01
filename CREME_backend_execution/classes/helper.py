@@ -76,6 +76,7 @@ class ProgressHelper:
                      5: "stage_5_status", 6: "stage_6_status", 7: "stage_7_status"}
     detail_fields = {1: "stage_1_detail", 2: "stage_2_detail", 3: "stage_3_detail", 4: "stage_4_detail",
                      5: "stage_5_detail", 6: "stage_6_detail", 7: "stage_7_detail"}
+    attack_phase_fields = {0: "attack_phase_1_data", 1: "attack_phase_2_data", 2: "attack_phase_3_data"}
     messages = []
 
     @staticmethod
@@ -162,11 +163,32 @@ class ProgressHelper:
         setattr(progress_data, detail_field, detail)
         progress_data.save()
 
+    @staticmethod
+    def update_attack_phase_data(attack_phases_data):
+        """
+        use to update the content(sub-technique) of attack phases
+        """
+        num_of_phases = len(attack_phases_data)
+        if num_of_phases is not 3:
+            while True:
+                # should not come here, number of phases must be 3
+                pass
+
+        progress_data_all = ProgressData.objects.all()
+        progress_data = progress_data_all.first()
+
+        for i in range(3):
+            attack_phase_field = ProgressHelper.attack_phase_fields[i]
+            data = attack_phases_data[i]
+            setattr(progress_data, attack_phase_field, data)
+        progress_data.save()
+
 
 class ProcessDataHelper:
     @staticmethod
     def make_labeling_file(labeling_file_path, tactic_names, technique_names, sub_technique_names, t, src_ips, des_ips,
-                           normal_ips, normal_hostnames, abnormal_hostnames, drop_cmd_list):
+                           normal_ips, normal_hostnames, abnormal_hostnames, pattern_normal_cmd_list=[[],[],[]],
+                           force_abnormal_cmd_list=[[],[],[]]):
         """
         use to create a labeling file which is a parameter using to label data
         """
@@ -175,13 +197,17 @@ class ProcessDataHelper:
         # if attack_scenario == MIRAI:
         #     t1 = XXX + 1
 
+        # each element is one stage in an attack scenario
         my_list = []
         my_list.append([tactic_names[0], technique_names[0], sub_technique_names[0], t1, t2 + 1, src_ips[0], des_ips[0],
-                        normal_ips[0], normal_hostnames[0], abnormal_hostnames[0], drop_cmd_list])
+                        normal_ips[0], normal_hostnames[0], abnormal_hostnames[0], pattern_normal_cmd_list[0],
+                        force_abnormal_cmd_list[0]])
         my_list.append([tactic_names[1], technique_names[1], sub_technique_names[1], t3, t4 + 1, src_ips[1], des_ips[1],
-                        normal_ips[1], normal_hostnames[1], abnormal_hostnames[1], drop_cmd_list])
+                        normal_ips[1], normal_hostnames[1], abnormal_hostnames[1], pattern_normal_cmd_list[1],
+                        force_abnormal_cmd_list[1]])
         my_list.append([tactic_names[2], technique_names[2], sub_technique_names[2], t5, t6 + 1, src_ips[2], des_ips[2],
-                        normal_ips[2], normal_hostnames[2], abnormal_hostnames[2], drop_cmd_list])
+                        normal_ips[2], normal_hostnames[2], abnormal_hostnames[2], pattern_normal_cmd_list[2],
+                        force_abnormal_cmd_list[2]])
         with open(labeling_file_path, "w+") as fw:
             json.dump(my_list, fw)
 
@@ -811,6 +837,37 @@ class ProcessDataHelper:
         df.to_csv(tmp_filename, encoding='utf-8', index=False)
 
 
+    @staticmethod
+    def merge_other_logs_2_syslog(other_log_files, syslog_file, timestamps_syslog, hostnames, time_zone="+08:00",
+                                  component="continuum[]"):
+        t_start = timestamps_syslog[0][0]
+        t_end = timestamps_syslog[-1][1]
+        new_lines = []
+
+        for i, log_file in enumerate(other_log_files):
+            with open(log_file, 'rt') as fr:
+                lines = fr.readlines()
+
+            for line in lines:
+                fields = line.split(maxsplit=4)
+                tmp_date = fields[0]
+                hour_min_second = (fields[1]).split(',')[0]
+                log_message = fields[-1]
+                if len(fields) < 5 or len(tmp_date.split('-')) is not 3:
+                    continue  # something is wrong here
+
+                time_string = "{0}T{1}{2}".format(tmp_date, hour_min_second, time_zone)
+                dateTime = parse(time_string)
+                timestamp = (int)(dateTime.timestamp())
+                if (int)(t_start) <= timestamp <= (int)(t_end):
+                    new_line = "{0} {1} {2}: {3}".format(time_string, hostnames[i], component, log_message)
+                    new_lines.append(new_line)
+
+        with open(syslog_file, 'a') as fa:
+            for line in new_lines:
+                fa.write("{}\n".format(line))
+
+
 class TrainMLHelper:
     @staticmethod
     def accuracy(data_source, input_folder, input_file, output_folder, models_name=[], num_of_folds=5,
@@ -1000,18 +1057,22 @@ class EvaluationHelper:
 
     # ----- coverage -----
     @staticmethod
-    def generate_existing_coverage(output_folder, output_file, weights):
+    def generate_coverage(output_folder, output_file, weights, creme_attack_scenarios, creme_attack_types):
         """
-        use to generate existing coverage for existing datasets with corresponding weights.
+        use to generate coverage for datasets with corresponding weights.
         """
         # weights = {"attack_types": 4 / 10 / 20, "attack_scenarios": 2 / 10 / 20, "data_sources": 1 / 10 / 6,
         #            "labeled_data": 1 / 10 / 6, "feature_set": 1 / 10 / 6, "metadata": 1 / 10}
         filename = os.path.join(output_folder, output_file)
 
+        creme_num_of_scenarios = len(set(creme_attack_scenarios))
+        creme_num_of_attack_types = len(set(creme_attack_types))
+
         csv_columns = ["dataset", "attack_types", "attack_scenarios", "data_sources", "labeled_data", "feature_set",
                        "metadata", "score"]
 
         csv_rows = []
+        # existing datasets
         csv_rows.append({"dataset": "IoT-NID", "attack_types": 5, "attack_scenarios": 1, "data_sources": 1,
                          "labeled_data": 1, "feature_set": 0, "metadata": 1})
         csv_rows.append({"dataset": "NGIDS-DS", "attack_types": 7, "attack_scenarios": 0, "data_sources": 2,
@@ -1029,6 +1090,10 @@ class EvaluationHelper:
         csv_rows.append({"dataset": "NDSec-1", "attack_types": 9, "attack_scenarios": 3, "data_sources": 2,
                          "labeled_data": 1, "feature_set": 1, "metadata": 1})
         csv_rows.append({"dataset": "Ton-IoT", "attack_types": 9, "attack_scenarios": 0, "data_sources": 3,
+                         "labeled_data": 3, "feature_set": 3, "metadata": 1})
+        # creme dataset
+        csv_rows.append({"dataset": "CREME", "attack_types": creme_num_of_attack_types,
+                         "attack_scenarios": creme_num_of_scenarios, "data_sources": 3,
                          "labeled_data": 3, "feature_set": 3, "metadata": 1})
 
         for row in csv_rows:  # dataset

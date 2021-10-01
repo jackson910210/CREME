@@ -14,7 +14,7 @@ class Creme:
 
     models_name = ["decision_tree", "naive_bayes", "extra_tree", "knn", "random_forest", "XGBoost"]
 
-    # should update to allow users define weights on the website
+    # TODO: should update to allow users define weights on the website
     weights = {"attack_types": 4 / 10 / 20, "attack_scenarios": 2 / 10 / 20, "data_sources": 1 / 10 / 6,
                "labeled_data": 1 / 10 / 6, "feature_set": 1 / 10 / 6, "metadata": 1 / 10}
 
@@ -127,17 +127,19 @@ class Creme:
         for non_vulnerable_client in self.non_vulnerable_clients:
             non_vulnerable_client.stop_collect_data()
 
-    def centralize_data(self, contain_continuum_log=False):
+    def centralize_data(self, other_data=False, remote_paths=[], remote_files=[]):
         """
         using to centralize data from the data logger client to the data logger server
-        :param contain_continuum_log: whether the attack scenario should collect log of apache continuum server or not
+        :param other_data: except atop files, whether we needs to collect other data at the data logger client or not
+        :param remote_paths: paths correspond to files
+        :param remote_files: files correspond to paths
         """
         for vulnerable_client in self.vulnerable_clients:
             self.dls.centralize_data(vulnerable_client)
         for non_vulnerable_client in self.non_vulnerable_clients:
             self.dls.centralize_data(non_vulnerable_client)
-        self.dls.centralize_data(self.target_server, contain_continuum_log)
-        self.dls.centralize_data(self.benign_server, contain_continuum_log)
+        self.dls.centralize_data(self.target_server, other_data, remote_paths, remote_files)
+        self.dls.centralize_data(self.benign_server, other_data, remote_paths, remote_files)
 
     def centralize_time_files(self, remote_machine, time_files):
         """
@@ -303,21 +305,21 @@ class Creme:
         self.attacker_server.end_point_dos_start_metasploit()
 
         stage = 2
-        ProgressHelper.update_stage(stage, f"{self.attacker_server.hostname} is exploiting ?????",
+        ProgressHelper.update_stage(stage, f"{self.attacker_server.hostname} is exploiting unix/irc/unreal_ircd_3281_backdoor",
                                     5, new_stage=True)
         self.attacker_server.end_point_dos_first_stage()
-        ProgressHelper.update_stage(stage, f"{self.attacker_server.hostname} finished exploiting ?????",
+        ProgressHelper.update_stage(stage, f"{self.attacker_server.hostname} finished exploiting unix/irc/unreal_ircd_3281_backdoor",
                                     5, finished_task=True, override_pre_message=True, finished_stage=True)
 
         stage += 1
-        ProgressHelper.update_stage(stage, f"{self.attacker_server.hostname} is executing ?????",
+        ProgressHelper.update_stage(stage, f"{self.attacker_server.hostname} is executing Create Account",
                                     5, new_stage=True)
         self.attacker_server.end_point_dos_second_stage()
-        ProgressHelper.update_stage(stage, f"{self.attacker_server.hostname} finished executing ?????",
+        ProgressHelper.update_stage(stage, f"{self.attacker_server.hostname} finished executing Create Account",
                                     5, finished_task=True, override_pre_message=True, finished_stage=True)
 
         stage += 1
-        ProgressHelper.update_stage(stage, f"{self.attacker_server.hostname} is executing ?????",
+        ProgressHelper.update_stage(stage, f"{self.attacker_server.hostname} is executing end_point_dos",
                                     5, new_stage=True)
         self.attacker_server.end_point_dos_third_stage()
         # wait and record timestamp
@@ -325,7 +327,7 @@ class Creme:
         timestamp_file = "time_stage_3_end.txt"
         OtherHelper.wait_finishing(sleep_time=90, record_time=True, folder=timestamp_folder,
                                    timestamp_file=timestamp_file)
-        ProgressHelper.update_stage(stage, f"{self.attacker_server.hostname} finished executing ?????",
+        ProgressHelper.update_stage(stage, f"{self.attacker_server.hostname} finished executing end_point_dos",
                                     5, finished_task=True, override_pre_message=True, finished_stage=True)
 
     def attack_data_theft(self):
@@ -334,18 +336,18 @@ class Creme:
 
         stage = 2
         ProgressHelper.update_stage(stage,
-                                    f"{self.attacker_server.hostname} is exploiting unreal_ircd_3281_backdoor",
+                                    f"{self.attacker_server.hostname} is exploiting rails_secret_deserialization",
                                     5, new_stage=True)
         self.attacker_server.data_theft_first_stage()
         ProgressHelper.update_stage(stage,
-                                    f"{self.attacker_server.hostname} finished exploiting unreal_ircd_3281_backdoor",
+                                    f"{self.attacker_server.hostname} finished exploiting rails_secret_deserialization",
                                     5, finished_task=True, override_pre_message=True, finished_stage=True)
 
         stage += 1
-        ProgressHelper.update_stage(stage, f"{self.attacker_server.hostname} is executing docker_daemon_privilege_escalation",
+        ProgressHelper.update_stage(stage, f"{self.attacker_server.hostname} is executing service_persistence",
                                     5, new_stage=True)
         self.attacker_server.data_theft_second_stage()
-        ProgressHelper.update_stage(stage, f"{self.attacker_server.hostname} finished executing docker_daemon_privilege_escalation",
+        ProgressHelper.update_stage(stage, f"{self.attacker_server.hostname} finished executing service_persistence",
                                     5, finished_task=True, override_pre_message=True, finished_stage=True)
 
         stage += 1
@@ -393,12 +395,15 @@ class Creme:
                                     5, finished_task=True, override_pre_message=True, finished_stage=True)
 
     # ---------- download data to controller ----------
-    def download_data_to_controller(self, scenario_log_folder, contain_continuum_log=False, time_filenames=[]):
+    def download_data_to_controller(self, scenario_log_folder, time_filenames=[], other_files_flag=False,
+                                    local_folders=[], remote_files=[]):
         """
         using to download data from the data logger server to controller, and save it to scenario_log_folder.
         :param scenario_log_folder: a folder of specific scenario insides the logs folder.
-        :param contain_continuum_log: whether the attack scenario should collect log of apache continuum server or not
         :param time_filenames: name of timestamp files
+        :param other_files_flag: whether we needs to collect other data to controller or not
+        :param local_folders: local folders at controller
+        :param remote_files: other files at remote_machine (not pcap, accounting, syslog, timestamp)
         """
         log_folder = self.dls.controller_path
         tmp_folder_names = ["CREME", "CREME_backend_execution", "logs", scenario_log_folder]
@@ -437,15 +442,17 @@ class Creme:
         DownloadDataHelper.get_data(self.dls.ip, self.dls.username, self.dls.password, remote_folder=remote_folder,
                                     file_names=file_names, local_folder=syslog_folder)
 
-        if contain_continuum_log:  # download apache continuum's log
-            syslog = "syslog"
-            syslog_folder = os.path.join(log_folder, syslog)
-            file_names = []
-            file_names.append('{0}_continuum.log'.format(self.benign_server.hostname))
-            file_names.append('{0}_continuum.log'.format(self.target_server.hostname))
+        if other_files_flag:  # download other logs/files
+            for i, tmp_folder in enumerate(local_folders):
+                # syslog = "syslog"
+                local_folder = os.path.join(log_folder, tmp_folder)
+                file_names = []
+                file_names.append(remote_files[i])
+                # file_names.append('{0}_continuum.log'.format(self.benign_server.hostname))
+                # file_names.append('{0}_continuum.log'.format(self.target_server.hostname))
 
-            DownloadDataHelper.get_data(self.dls.ip, self.dls.username, self.dls.password, remote_folder=self.dls.path,
-                                        file_names=file_names, local_folder=syslog_folder)
+                DownloadDataHelper.get_data(self.dls.ip, self.dls.username, self.dls.password, remote_folder=self.dls.path,
+                                            file_names=file_names, local_folder=local_folder)
 
         # ----- download timestamp files -----
         times = "times"
@@ -457,14 +464,30 @@ class Creme:
 
     # ---------- cleaning ----------
     def clean_data_collection(self):
+        # TODO: think about whether we really need this one ?
+        #  Or restarting rsyslog when entering the attack scenarios is enough?
+
         self.target_server.clean_data_collection()
         self.benign_server.clean_data_collection()
         self.dls.clean_data_collection()
 
+    # ---------- cleaning ----------
+    def restart_rsyslog_service(self):
+        self.target_server.restart_rsyslog()
+        self.benign_server.restart_rsyslog()
+        self.dls.restart_rsyslog()
+
     # ---------- run scenario ----------
     def run_mirai(self):
         scenario = "mirai"
+        attack_phases_name = ("Attack Phase 1<br>(Valid Accounts)", "Attack Phase 2</br>(Non-App Layer Protocol)",
+                              "Attack Phase 3</br>(Network DoS)")
         ProgressHelper.update_scenario(scenario)
+        ProgressHelper.update_attack_phase_data(attack_phases_name)
+
+        # restart the rsyslog at data logger server
+        self.restart_rsyslog_service()
+
         self.start_reproduce_benign_behavior()
         self.start_collect_data()
         self.attack_mirai()
@@ -480,7 +503,14 @@ class Creme:
 
     def run_disk_wipe(self):
         scenario = "disk_wipe"
+        attack_phases_name = ("Attack Phase 1<br>(Exploit Public Application)", "Attack Phase 2</br>(Non-App Layer Protocol)",
+                              "Attack Phase 3</br>(Disk wipe)")
         ProgressHelper.update_scenario(scenario)
+        ProgressHelper.update_attack_phase_data(attack_phases_name)
+
+        # restart the rsyslog at data logger server
+        self.restart_rsyslog_service()
+
         self.start_reproduce_benign_behavior()
         self.start_collect_data()
         self.attack_disk_wipe()
@@ -498,7 +528,14 @@ class Creme:
 
     def run_ransomware(self):
         scenario = "ransomware"
+        attack_phases_name = ("Attack Phase 1<br>(Exploit Public Application)", "Attack Phase 2</br>(Non-App Layer Protocol)",
+                              "Attack Phase 3</br>(Data Encrypted)")
         ProgressHelper.update_scenario(scenario)
+        ProgressHelper.update_attack_phase_data(attack_phases_name)
+
+        # restart the rsyslog at data logger server
+        self.restart_rsyslog_service()
+
         self.start_reproduce_benign_behavior()
         self.start_collect_data()
         self.attack_ransomware()
@@ -516,7 +553,18 @@ class Creme:
 
     def run_resource_hijacking(self):
         scenario = "resource_hijacking"
+        attack_phases_name = ("Attack Phase 1<br>(Exploit Public Application)", "Attack Phase 2</br>(Non-App Layer Protocol)",
+                              "Attack Phase 3</br>(Resource Hijacking)")
         ProgressHelper.update_scenario(scenario)
+        ProgressHelper.update_attack_phase_data(attack_phases_name)
+
+        # restart the rsyslog at data logger server
+        self.restart_rsyslog_service()
+
+        # restart continuum services at target server and benign server
+        self.target_server.restart_continuum()
+        self.benign_server.restart_continuum()
+
         self.start_reproduce_benign_behavior()
         self.start_collect_data()
         self.attack_resource_hijacking()
@@ -526,15 +574,36 @@ class Creme:
         self.attacker_server.clean_resource_hijacking()
         self.target_server.clean_resource_hijacking()
 
-        self.centralize_data()
+        remote_paths = ["/opt/apache_continuum/apache-continuum-1.4.2/logs"]
+        remote_files = ["continuum.log"]
+        self.centralize_data(True, remote_paths, remote_files)
+
         file_names = ["time_stage_1_start.txt", "time_stage_1_end.txt", "time_stage_2_start.txt",
                       "time_stage_2_end.txt", "time_stage_3_start.txt"]
         self.centralize_time_files(remote_machine=self.attacker_server, time_files=file_names)
-        self.download_data_to_controller(scenario, time_filenames=file_names)
+
+        local_folders = ["syslog", "syslog"]
+        remote_files = []
+        remote_files.append("{0}_continuum.log".format(self.benign_server.hostname))
+        remote_files.append("{0}_continuum.log".format(self.target_server.hostname))
+        self.download_data_to_controller(scenario, time_filenames=file_names, other_files_flag=True,
+                                         local_folders=local_folders, remote_files=remote_files)
 
     def run_end_point_dos(self):
         scenario = "end_point_dos"
+        attack_phases_name = ("Attack Phase 1<br>(Exploit Public Application)", "Attack Phase 2</br>(Create Account)",
+                              "Attack Phase 3</br>(Endpoint DoS)")
         ProgressHelper.update_scenario(scenario)
+        ProgressHelper.update_attack_phase_data(attack_phases_name)
+
+        # restart the rsyslog at data logger server
+        self.restart_rsyslog_service()
+
+        # config ulimit to limit the number of processes for normal users,
+        # opening many processes will cause to problems about stuck atop collection
+        # TODO: currently, ulimit can't be applied to ssh session.
+        #self.target_server.configure_end_point_dos_ulimit()
+
         self.start_reproduce_benign_behavior()
         self.start_collect_data()
         self.attack_end_point_dos()
@@ -546,13 +615,20 @@ class Creme:
 
         self.centralize_data()
         file_names = ["time_stage_1_start.txt", "time_stage_1_end.txt", "time_stage_2_start.txt",
-                      "time_stage_2_end.txt", "time_stage_3_start.txt"]
+                      "time_stage_2_end.txt"]
         self.centralize_time_files(remote_machine=self.attacker_server, time_files=file_names)
         self.download_data_to_controller(scenario, time_filenames=file_names)
 
     def run_data_theft(self):
         scenario = "data_theft"
+        attack_phases_name = ("Attack Phase 1<br>(Exploit Public Application)", "Attack Phase 2</br>(Non-App Layer Protocol)",
+                              "Attack Phase 3</br>(Exfiltration Over C2 Channel)")
         ProgressHelper.update_scenario(scenario)
+        ProgressHelper.update_attack_phase_data(attack_phases_name)
+
+        # restart the rsyslog at data logger server
+        self.restart_rsyslog_service()
+
         self.start_reproduce_benign_behavior()
         self.start_collect_data()
         self.attack_data_theft()
@@ -571,7 +647,14 @@ class Creme:
 
     def run_rootkit_ransomware(self):
         scenario = "rootkit_ransomware"
+        attack_phases_name = ("Attack Phase 1<br>(Exploit Public Application)", "Attack Phase 2</br>(Non-App Layer Protocol)",
+                              "Attack Phase 3</br>(Data Encrypted)")
         ProgressHelper.update_scenario(scenario)
+        ProgressHelper.update_attack_phase_data(attack_phases_name)
+
+        # restart the rsyslog at data logger server
+        self.restart_rsyslog_service()
+
         self.start_reproduce_benign_behavior()
         self.start_collect_data()
         self.attack_rootkit_ransomware()
@@ -591,9 +674,10 @@ class Creme:
     # ---------- process data ----------
     def process_data_mirai(self, log_folder):
         """
-        this function use to create labeling_file that contain information to label accounting and traffic data for
+        This function use to create labeling_file that contain information to label accounting and traffic data for
         Mirai attack scenario, also return abnormal_hostnames, normal_hostnames, timestamps_syslog to process and
-        label syslog
+        label syslog.
+        If technique and sub_technique are the same, it means that the technique doesn't have sub-techniques
         """
         folder_times = os.path.join(log_folder, "times")
         t1, t2, t3, t4 = ProcessDataHelper.get_time_stamps_mirai(folder_times, self.attacker_server.DDoS_duration)
@@ -603,7 +687,7 @@ class Creme:
         labels = [1, 1, 1]  # only for syslog
         tactic_names = ['Initial Access', 'Command and Control', 'Impact']
         technique_names = ['Valid Accounts', 'Non-Application Layer Protocol', 'Network Denial of Service']
-        sub_technique_names = ['SubTechnique-Stage-1', 'SubTechnique-Stage-2', 'SubTechnique-Stage-3']
+        sub_technique_names = ['Local Accounts', 'Non-Application Layer Protocol', 'Direct Network Flood']
 
         src_ips_1 = []
         des_ips_1 = []
@@ -663,20 +747,21 @@ class Creme:
         normal_ips = [normal_ips_1, normal_ips_2, normal_ips_3]
         normal_hostnames = [normal_hostnames_1, normal_hostnames_2, normal_hostnames_3]
         abnormal_hostnames = [abnormal_hostnames_1, abnormal_hostnames_2, abnormal_hostnames_3]
-        drop_cmd_list = ['kworker']
+        pattern_normal_cmd_list = [['kworker'], ['kworker'], ['kworker']]
 
         labeling_file_path = os.path.join(log_folder, "labeling_file_path.txt")
 
         ProcessDataHelper.make_labeling_file(labeling_file_path, tactic_names, technique_names,
                                              sub_technique_names, t, src_ips, des_ips, normal_ips, normal_hostnames,
-                                             abnormal_hostnames, drop_cmd_list)
+                                             abnormal_hostnames, pattern_normal_cmd_list)
 
         timestamps_syslog = [[t1, t2], [t2, t3], [t3, t4]]
 
         return labeling_file_path, timestamps_syslog, abnormal_hostnames, normal_hostnames, labels, tactic_names,\
             technique_names, sub_technique_names
 
-    def process_data_general_scenario(self, log_folder, labels, tactic_names, technique_names, sub_technique_names):
+    def process_data_general_scenario(self, log_folder, labels, tactic_names, technique_names, sub_technique_names,
+                                      force_abnormal_cmd_list=[[],[],[]]):
         """
         this function use to create labeling_file that contain information to label accounting and traffic data for
         general attack scenarios (excepting Mirai), also return abnormal_hostnames, normal_hostnames, timestamps_syslog to process and
@@ -722,13 +807,16 @@ class Creme:
         normal_ips = [normal_ips_1, normal_ips_2, normal_ips_3]
         normal_hostnames = [normal_hostnames_1, normal_hostnames_2, normal_hostnames_3]
         abnormal_hostnames = [abnormal_hostnames_1, abnormal_hostnames_2, abnormal_hostnames_3]
-        drop_cmd_list = ['kworker']
+        pattern_normal_cmd_list = [['kworker'], ['kworker'], ['kworker']]
 
         labeling_file_path = os.path.join(log_folder, "labeling_file_path.txt")
 
+        # TODO: labels are not used, think about using it to label accounting and traffic data (pass to
+        #  make_labeling_file which is used to create a file as parameters for labeling accounting and traffic).
+        #  Currently, hard-code label 1 for abnormal data in filter_label_atop.py and make_label_subflow.py
         ProcessDataHelper.make_labeling_file(labeling_file_path, tactic_names, technique_names,
                                              sub_technique_names, t, src_ips, des_ips, normal_ips, normal_hostnames,
-                                             abnormal_hostnames, drop_cmd_list)
+                                             abnormal_hostnames, pattern_normal_cmd_list, force_abnormal_cmd_list)
 
         timestamps_syslog = [[t1, t2], [t3, t4], [t5, t6]]
 
@@ -739,12 +827,13 @@ class Creme:
         """
         this function use to create labeling_file that contain information to label accounting and traffic data for
         Disk_Wipe attack scenario, also return abnormal_hostnames, normal_hostnames, timestamps_syslog to process and
-        label syslog
+        label syslog.
+        If technique and sub_technique are the same, it means that the technique doesn't have sub-techniques.
         """
         labels = [1, 1, 1]  # only for syslog
         tactic_names = ['Initial Access', 'Command and Control', 'Impact']
-        technique_names = ['Valid Accounts', 'Non-Application Layer Protocol', 'Network Denial of Service']
-        sub_technique_names = ['SubTechnique-Stage-1', 'SubTechnique-Stage-2', 'SubTechnique-Stage-3']
+        technique_names = ['Exploit Public Application', 'Non-Application Layer Protocol', 'Disk wipe']
+        sub_technique_names = ['Exploit Public Application', 'Non-Application Layer Protocol', 'Disk Content Wipe']
 
         return self.process_data_general_scenario(log_folder, labels, tactic_names, technique_names, sub_technique_names)
 
@@ -752,12 +841,13 @@ class Creme:
         """
         this function use to create labeling_file that contain information to label accounting and traffic data for
         Data_Theft attack scenario, also return abnormal_hostnames, normal_hostnames, timestamps_syslog to process and
-        label syslog
+        label syslog.
+        If technique and sub_technique are the same, it means that the technique doesn't have sub-techniques.
         """
         labels = [1, 1, 1]  # only for syslog
-        tactic_names = ['Initial Access', 'Command and Control', 'Impact']
-        technique_names = ['Valid Accounts', 'Non-Application Layer Protocol', 'Network Denial of Service']
-        sub_technique_names = ['SubTechnique-Stage-1', 'SubTechnique-Stage-2', 'SubTechnique-Stage-3']
+        tactic_names = ['Initial Access', 'Command and Control', 'Exfiltration']
+        technique_names = ['Exploit Public Application', 'Non-Application Layer Protocol', 'Exfiltration Over C2 Channel']
+        sub_technique_names = ['Exploit Public Application', 'Non-Application Layer Protocol', 'Exfiltration Over C2 Channel']
 
         return self.process_data_general_scenario(log_folder, labels, tactic_names, technique_names,
                                                   sub_technique_names)
@@ -766,12 +856,13 @@ class Creme:
         """
         this function use to create labeling_file that contain information to label accounting and traffic data for
         Rootkit_Ransomware attack scenario, also return abnormal_hostnames, normal_hostnames, timestamps_syslog to process and
-        label syslog
+        label syslog.
+        If technique and sub_technique are the same, it means that the technique doesn't have sub-techniques.
         """
         labels = [1, 1, 1]  # only for syslog
         tactic_names = ['Initial Access', 'Command and Control', 'Impact']
-        technique_names = ['Valid Accounts', 'Non-Application Layer Protocol', 'Network Denial of Service']
-        sub_technique_names = ['SubTechnique-Stage-1', 'SubTechnique-Stage-2', 'SubTechnique-Stage-3']
+        technique_names = ['Exploit Public Application', 'Non-Application Layer Protocol', 'Data Encrypted']
+        sub_technique_names = ['Exploit Public Application', 'Non-Application Layer Protocol', 'Data Encrypted']
 
         return self.process_data_general_scenario(log_folder, labels, tactic_names, technique_names,
                                                   sub_technique_names)
@@ -780,15 +871,50 @@ class Creme:
         """
         this function use to create labeling_file that contain information to label accounting and traffic data for
         Ransomware attack scenario, also return abnormal_hostnames, normal_hostnames, timestamps_syslog to process and
-        label syslog
+        label syslog.
+        If technique and sub_technique are the same, it means that the technique doesn't have sub-techniques.
         """
         labels = [1, 1, 1]  # only for syslog
         tactic_names = ['Initial Access', 'Command and Control', 'Impact']
-        technique_names = ['Valid Accounts', 'Non-Application Layer Protocol', 'Network Denial of Service']
-        sub_technique_names = ['SubTechnique-Stage-1', 'SubTechnique-Stage-2', 'SubTechnique-Stage-3']
+        technique_names = ['Exploit Public Application', 'Non-Application Layer Protocol', 'Data Encrypted']
+        sub_technique_names = ['Exploit Public Application', 'Non-Application Layer Protocol', 'Data Encrypted']
 
         return self.process_data_general_scenario(log_folder, labels, tactic_names, technique_names,
                                                   sub_technique_names)
+
+    def process_data_resource_hijacking(self, log_folder):
+        """
+        this function use to create labeling_file that contain information to label accounting and traffic data for
+        Resource_Hijacking attack scenario, also return abnormal_hostnames, normal_hostnames, timestamps_syslog to process and
+        label syslog.
+        If technique and sub_technique are the same, it means that the technique doesn't have sub-techniques.
+        """
+        labels = [1, 1, 1]  # only for syslog
+        tactic_names = ['Initial Access', 'Command and Control', 'Impact']
+        technique_names = ['Exploit Public Application', 'Non-Application Layer Protocol', 'Resource Hijacking']
+        sub_technique_names = ['Exploit Public Application', 'Non-Application Layer Protocol', 'Resource Hijacking']
+
+        return self.process_data_general_scenario(log_folder, labels, tactic_names, technique_names,
+                                                  sub_technique_names)
+
+    def process_data_end_point_dos(self, log_folder):
+        """
+        this function use to create labeling_file that contain information to label accounting and traffic data for
+        End_Point_Dos attack scenario, also return abnormal_hostnames, normal_hostnames, timestamps_syslog to process and
+        label syslog.
+        If technique and sub_technique are the same, it means that the technique doesn't have sub-techniques.
+        """
+        labels = [1, 1, 1]  # only for syslog
+        tactic_names = ['Initial Access', 'Persistence', 'Impact']
+        technique_names = ['Exploit Public Application', 'Create Account', 'Endpoint DoS']
+        sub_technique_names = ['Exploit Public Application', 'Local Account', 'OS Exhaustion Flood']
+
+        # TODO: currently, using only cmd to label accounting data. There is a problem if normal and abnormal processes
+        #  have the same cmd. Think about how to solve this problem???
+        force_abnormal_cmd_list = [[],[],["<bash>"]]  # pattern of force bomb process
+
+        return self.process_data_general_scenario(log_folder, labels, tactic_names, technique_names,
+                                                  sub_technique_names, force_abnormal_cmd_list)
 
     def process_data(self):
         stage = 5
@@ -964,6 +1090,76 @@ class Creme:
             ProgressHelper.update_stage(stage, f"Finished processing the data of ransomware scenario", 5,
                                         finished_task=True, override_pre_message=True)
 
+        if Creme.resource_hijacking:
+            ProgressHelper.update_stage(stage, f"Processing the data of Resource_Hijacking scenario", 5)
+
+            scenario = "resource_hijacking"
+            log_folder_resource_hijacking = os.path.join(log_folder, scenario)
+            labeling_file_path, timestamps_syslog, abnormal_hostnames, normal_hostnames, labels, tactics,\
+                techniques, sub_techniques = self.process_data_resource_hijacking(log_folder_resource_hijacking)
+            accounting_folder = "accounting"
+            traffic_file = os.path.join("traffic", self.dls.tcp_file)
+            information = [labeling_file_path, log_folder_resource_hijacking, accounting_folder, traffic_file]
+
+            big_list.append(information)
+            traffic_files.append("label_traffic_resource_hijacking.csv")
+            atop_files.append("label_atop_resource_hijacking.csv")
+
+            # syslog
+            syslog_folder = os.path.join(log_folder_resource_hijacking, "syslog")
+            syslog_file = os.path.join(syslog_folder, "dataset_generation.log")
+            input_files.append(syslog_file)
+            scenarios_timestamps.append(timestamps_syslog)
+            scenarios_abnormal_hostnames.append(abnormal_hostnames)
+            scenarios_normal_hostnames.append(normal_hostnames)
+            # merge continuum logs to dataset_generation.log
+            continuum_log_files = []
+            tmp_hostnames = []
+            continuum_log_files.append(os.path.join(syslog_folder, "{0}_continuum.log".format(self.benign_server.hostname)))
+            tmp_hostnames.append(self.benign_server.hostname)
+            continuum_log_files.append(os.path.join(syslog_folder, "{0}_continuum.log".format(self.target_server.hostname)))
+            tmp_hostnames.append(self.target_server.hostname)
+            ProcessDataHelper.merge_other_logs_2_syslog(continuum_log_files, syslog_file, timestamps_syslog, tmp_hostnames)
+
+            scenarios_labels.append(labels)
+            scenarios_tactics.append(tactics)
+            scenarios_techniques.append(techniques)
+            scenarios_sub_techniques.append(sub_techniques)
+
+            ProgressHelper.update_stage(stage, f"Finished processing the data of resource_hijacking scenario", 5,
+                                        finished_task=True, override_pre_message=True)
+
+        if Creme.end_point_dos:
+            ProgressHelper.update_stage(stage, f"Processing the data of End_Point_DoS scenario", 5)
+
+            scenario = "end_point_dos"
+            log_folder_end_point_dos = os.path.join(log_folder, scenario)
+            labeling_file_path, timestamps_syslog, abnormal_hostnames, normal_hostnames, labels, tactics,\
+                techniques, sub_techniques = self.process_data_end_point_dos(log_folder_end_point_dos)
+            accounting_folder = "accounting"
+            traffic_file = os.path.join("traffic", self.dls.tcp_file)
+            information = [labeling_file_path, log_folder_end_point_dos, accounting_folder, traffic_file]
+
+            big_list.append(information)
+            traffic_files.append("label_traffic_end_point_dos.csv")
+            atop_files.append("label_atop_end_point_dos.csv")
+
+            # syslog
+            syslog_file = os.path.join(log_folder_end_point_dos, "syslog")
+            syslog_file = os.path.join(syslog_file, "dataset_generation.log")
+            input_files.append(syslog_file)
+            scenarios_timestamps.append(timestamps_syslog)
+            scenarios_abnormal_hostnames.append(abnormal_hostnames)
+            scenarios_normal_hostnames.append(normal_hostnames)
+
+            scenarios_labels.append(labels)
+            scenarios_tactics.append(tactics)
+            scenarios_techniques.append(techniques)
+            scenarios_sub_techniques.append(sub_techniques)
+
+            ProgressHelper.update_stage(stage, f"Finished processing the data of end_point_dos scenario", 5,
+                                        finished_task=True, override_pre_message=True)
+
         ProgressHelper.update_stage(stage, f"Processing the accounting and network packet data sources", 5)
         folder_traffic = os.path.join(log_folder, "label_traffic")
         final_name_traffic = "label_traffic.csv"
@@ -1056,15 +1252,43 @@ class Creme:
                 ProgressHelper.update_stage(stage, "Finished {0}".format(data_source), 6,
                                             finished_task=True, override_pre_message=True)
 
+    def coverage_generage_attack_scenarios_types(self):
+        attack_scenarios = []
+        attack_types = []
+
+        if Creme.mirai:
+            attack_scenarios.append("mirai")
+            attack_types.extend(["scanning", "brute_force", "backdoor", "DDoS"])
+        if Creme.disk_wipe:
+            attack_scenarios.append("disk_wipe")
+            attack_types.extend(["vulnerability", "backdoor", "data_destruction"])
+        if Creme.ransomware:
+            attack_scenarios.append("ransomware")
+            attack_types.extend(["vulnerability", "privilege_escalation", "backdoor", "ransomware"])
+        if Creme.resource_hijacking:
+            attack_scenarios.append("resource_hijacking")
+            attack_types.extend(["vulnerability", "backdoor", "resource_hijacking"])
+        if Creme.end_point_dos:
+            attack_scenarios.append("end_point_dos")
+            attack_types.extend(["vulnerability", "privilege_escalation", "backdoor", "end_point_dos"])
+        if Creme.data_theft:
+            attack_scenarios.append("data_theft")
+            attack_types.extend(["vulnerability", "backdoor", "exfiltration"])
+        if Creme.run_rootkit_ransomware:
+            attack_scenarios.append("run_rootkit_ransomware")
+            attack_types.extend(["vulnerability", "backdoor", "rootkit", "ransomware"])
+
+        return attack_scenarios, attack_types
+
     def coverage_evaluation(self, cov_result):
         cov_folder = os.path.join("CREME_backend_execution", "evaluation_results")
         cov_folder = os.path.join(cov_folder, "coverage")
         cov_file = "coverage.csv"
         weights = Creme.weights
-        cov_folder, cov_file = EvaluationHelper.generate_existing_coverage(cov_folder, cov_file, weights)
+        attack_scenarios, attack_types = self.coverage_generage_attack_scenarios_types()
 
-        # calculate CREME's coverage *******************************
-        pass
+        cov_folder, cov_file = EvaluationHelper.generate_coverage(cov_folder, cov_file, weights, attack_scenarios,
+                                                                  attack_types)
 
     def evaluation(self, eff_result):
         stage = 7
@@ -1085,12 +1309,12 @@ class Creme:
             self.run_mirai()
         if Creme.disk_wipe:
             self.run_disk_wipe()
-        # if Creme.ransomware:
-        #     self.run_ransomware()
-        # if Creme.resource_hijacking:
-        #     self.run_resource_hijacking()
-        # if Creme.end_point_dos:
-        #     self.run_end_point_dos()
+        if Creme.ransomware:
+            self.run_ransomware()
+        if Creme.resource_hijacking:
+            self.run_resource_hijacking()
+        if Creme.end_point_dos:
+            self.run_end_point_dos()
         if Creme.data_theft:
             self.run_data_theft()
         if Creme.rootkit_ransomware:
